@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Usage: fj example advanced expert
+# Summary: Collection of expert scripts
+# Help: Collection of advanced expert fj scripts
+
+fj help example advanced expert

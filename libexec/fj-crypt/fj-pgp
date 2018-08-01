@@ -1,0 +1,126 @@
+#!/usr/bin/env ruby
+# Usage: fj crypt pgp --mode (enc,dec,list) [--keyid KEYID] [< inputfile] [> outputfile]
+# Summary: Can encrypt or dycrypt data via stdin and stdout
+# Help: You have to use whole path to function because fj does not work with stdin and stdout
+#       'enc' will encrypt the input with the key set with -k
+#       'enc_multiline' will format the input to valid yaml multiline value and encrypt the input with the key seth with -k
+#         => enc and enc_multiline only works with parameter -k KEYID
+#       'dec' will decrypt the input if key exists for cipher
+#       'list' will list all public keys in the gnupghomedir
+# Examples:
+#   echo "Hello World" | fj crypt pgp -m enc -k 8E3F794E
+#   echo "Hello World" | fj crypt pgp -m enc -k 8E3F794E > enc_output
+#   fj crypt pgp -m enc -k 8E3F794E < dec_input > enc_ouput
+#   fj crypt pgp -m enc_multiline -k 8E3F794E < dec_input > enc_ouput
+#   fj crypt pgp -m dec < enc_input
+#   fj crypt pgp -m dec < enc_input > dec_ouput
+#   fj crypt pgp -m list
+
+require 'yaml'
+require 'optparse'
+require 'gpgme'
+
+class PGPHandler
+  def initialize
+    @crypto = GPGME::Crypto.new
+  end
+
+  def enc
+    encrypt(ARGF.read)
+  end
+
+  def enc_multiline
+    lines = ARGF.readlines
+    indented = lines.map { |line| '  ' + line }
+    indented_joined = indented.join('')
+    yaml_multiline_formatted = ['|', indented_joined].join("\n")
+    encrypt(yaml_multiline_formatted)
+  end
+
+  def encrypt(message)
+    if GPGME::Key.find(:public, CONFIG[:pgp_keyid]).empty?
+      STDERR.puts "Key with keyid #{CONFIG[:pgp_keyid]} does not exist on your system"
+      exit 1
+    end
+    @crypto.encrypt message, output: STDOUT, armor: true, always_trust: true, recipients: CONFIG[:pgp_keyid]
+  rescue GPGME::Error::General => e
+    puts e.backtrace
+    puts
+    puts 'Maybe your key has expired!'
+  end
+
+  def dec
+    @crypto.decrypt ARGF.read, output: STDOUT
+  end
+
+  def list
+    STDOUT.puts GPGME::Key.find :public
+  end
+end
+
+CONFIG_FILE = File.join(ENV['_FJ_ROOT'], '/share/crypt/defaults.yaml')
+if File.exist? CONFIG_FILE
+  CONFIG = YAML.load_file(CONFIG_FILE)
+else
+  STDERR.puts "[WARNING] no config file found at: #{CONFIG_FILE}".color('#FF0000')
+  exit 1
+end
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: fj crypt pgp --mode [enc,enc_multiline,dec,list] [-k KEYID] [< inputfile] [> outputfile]
+
+Summary: Can encrypt or dycrypt data via stdin and stdout
+
+Help:
+  You have to use whole path to function, because fj does not work with stdin and stdout
+  'enc' will encrypt the input with the key set with -k
+  'enc_multiline' will format the input to valid yaml multiline value and encrypt the input with the key seth with -k
+  => enc and enc_multiline only works with parameter -k KEYID
+  'dec' will decrypt the input if key exists for cipher
+  'list' will list all public keys on the system
+
+Examples:
+  echo 'Hello World' | fj crypt pgp -m enc
+  echo 'Hello World' | fj crypt pgp -m enc -k 8E3F794E
+  echo 'Hello World' | fj crypt pgp -m enc > enc_output
+  echo 'Hello World' | fj crypt pgp -m enc -k 8E3F794E > enc_output
+  fj crypt pgp -m enc < dec_input > enc_ouput
+  fj crypt pgp -m enc -k 8E3F794E < dec_input > enc_ouput
+  fj crypt pgp -m dec < enc_input
+  fj crypt pgp -m dec < enc_input > dec_ouput
+  fj crypt pgp -m list
+
+Parameter:"
+
+  opts.on('-m MODE', '--mode MODE', %w(dec enc enc_multiline list), 'Select crypt operation (dec, enc, list)') do |mode|
+    CONFIG[:pgp] = mode
+  end
+
+  opts.on('-k KEYID', '--key KEYID', 'Give keyid for encryption') do |key|
+    CONFIG[:pgp_keyid] = key
+    CONFIG[:no_default_key] = true
+  end
+end
+
+begin
+  optparse.parse!(ARGV)
+rescue => e
+  STDERR.puts $e.to_s
+end
+
+if CONFIG[:pgp].nil?
+  STDERR.puts 'You have to select an option encrypt, multiline encrypt, decrypt or list existing keys'
+  exit 1
+end
+
+if CONFIG[:no_default_key].nil?
+  STDERR.puts "You do not set a custom keyid, so default key #{CONFIG[:pgp_keyid]} will be used"
+end
+
+PGPHandler.new.enc if CONFIG[:pgp] == 'enc'
+
+PGPHandler.new.enc_multiline if CONFIG[:pgp] == 'enc_multiline'
+
+PGPHandler.new.dec if CONFIG[:pgp] == 'dec'
+
+PGPHandler.new.list if CONFIG[:pgp] == 'list'

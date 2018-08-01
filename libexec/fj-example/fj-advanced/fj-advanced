@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Usage: fj example advanced
+# Summary: List all Advanced fj Example Scripts
+# Help: This command lists all of the Advanced fj Example Scripts
+
+set -e
+
+fj help example bash advanced

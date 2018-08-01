@@ -1,0 +1,19 @@
+#!/bin/bash
+# Usage: fj selfupdate
+# Summary: Updates your local fj installation
+# Help: Updates the local conversis sub (fj) installation.
+# git pull origin master in your $_FJ_ROOT directory
+
+set -e
+
+echo "Updating fj in ${_FJ_ROOT}:"
+cd $_FJ_ROOT
+git pull origin master
+bundle install
+
+# short last changes
+LASTCHANGES=10
+echo
+echo "The latest ${LASTCHANGES} changes:"
+GIT_PAGER= git log --pretty=format:"%C(yellow)%h %ad %Creset| %Cgreen%s%d [%an]" --date=short --no-merges -$LASTCHANGES
+echo

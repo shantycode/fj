@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Usage: fj example [command]
+# Summary: Collection of BASH Sub Example Scripts
+# Help: These commands are mostly used as examples and for testing fj modifications
+
+set -e
+
+fj help example

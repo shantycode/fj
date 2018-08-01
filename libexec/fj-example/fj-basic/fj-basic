@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Usage: fj example bash basic
+# Summary: List all basic fj Example Scripts
+# Help: This command lists all of the basic fj Example Scripts
+
+set -e
+
+fj help example bash basic

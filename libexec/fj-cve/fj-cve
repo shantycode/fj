@@ -1,0 +1,88 @@
+#!/usr/bin/env ruby
+# Usage: fj cve <host>
+# Summary: Searches vulners.com for packages with CVE entries
+# Help: This script fetches a packet list directly from the <host>.
+#       You'll get a table with found CVE entries or no output at all.
+#
+#       Caveats:
+#       - You need to have an SSH agent running in order to log in.
+#       - Username on the server differs? Use the USER environment variable or use a proper .ssh/config.
+#
+# Examples:
+#   fj cve 91.92.93.1
+#   USER=foobar fj cve baz.org
+
+require 'bundler/setup'
+require 'json'
+require 'httparty'
+require 'terminal-table'
+require 'resolv'
+
+require_relative 'ssh_executer'
+
+class CVEHandler
+
+  def self::audit host
+    audit_url = "https://vulners.com/api/v3/audit/audit/"
+    bulletin_url = "https://vulners.com/api/v3/search/id/?id="
+
+    headers = {
+      'Content-Type' => 'application/json',
+      'Accept' => 'application/json'
+    }
+
+    print_arr = []
+
+    puts 'Scanning host ' + host
+
+    sshexec = SSHExecuter.new
+    begin
+      pkgs = sshexec.dpkg_pkgs host
+      version = sshexec.os_release host
+    rescue Exception => e
+      puts e.message
+      return
+    end
+
+    results = HTTParty::post(
+      audit_url,
+      :headers => headers,
+      :body => {:os => version[:os_id],
+                :version => version[:os_version],
+                :package => pkgs
+    }.to_json)
+
+    puts "Vulnerable packages found: " + results['data']['packages'].length.to_s
+
+    results['data']['packages'].each do |pkg|
+      pkg_name = pkg.first
+
+      pkg[1].each do |blist|
+        pkg_bulletin_id = blist[0]
+        pkg_bulletin_cvss_score = blist[1].first["cvss"]["score"]
+        print_arr << [pkg_name, pkg_bulletin_id, pkg_bulletin_cvss_score]
+      end
+    end
+
+    puts ""
+
+    return if print_arr.empty?
+
+    print_arr.sort! do |a,b| b[2] <=> a[2] end
+    table = Terminal::Table.new :rows => print_arr
+    begin
+      puts "|#{host} - #{Resolv::getname host} #{version[:os_id]} #{version[:os_version]}|"
+    rescue
+      puts "|#{host} #{version[:os_id]} #{version[:os_version]}|"
+    end
+    puts table
+  end
+
+end
+
+if ARGV.length > 1 || ARGV.length.zero?
+  Kernel::system 'fj help cve'
+  exit 1
+else
+  CVEHandler::audit ARGV.first
+end

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Usage: fj crypt <action>
+# Summary: crypto helper tools
+# Help: crypto helper tools
+
+fj help crypt

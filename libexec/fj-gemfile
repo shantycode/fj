@@ -1,0 +1,16 @@
+#!/bin/bash
+# Usage: fj gemfile
+# Summary: Creates an empty Gemfile in your work directory
+# Help: Creates an empty Gemfile in your work directory
+
+set -e
+
+if [ -f Gemfile ]; then
+  echo "Gemfile already exists."
+  exit 1
+fi
+
+echo -n "Creating empty Gemfile: "
+cp $_FJ_ROOT/share/misc/Gemfile.erb Gemfile
+echo "done."
+

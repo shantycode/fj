@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 gem 'rainbow', '3.0'
-gem 'net-ldap', '0.6.1'
+gem 'net-ldap', '>0.6.1'
 gem 'httparty', '0.13.3'
 gem 'gpgme', '~> 2.0', '>= 2.0.10'
 gem 'pry',  '>=0.9.12.6'
